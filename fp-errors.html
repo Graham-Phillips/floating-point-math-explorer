@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Problems Of Floating-Point Math</title>
+    <link rel="stylesheet" href="/src/app/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <nav class="top-nav" aria-label="Primary">
+        <a href="/fp-errors.html" aria-current="page">FP Math Errors</a>
+        <a href="/attempts.html">Naive Solutions</a>
+        <a href="/comparisons.html">Lab</a>        <a href="/third-party-libraries.html">Third-Party Libraries</a>
+      </nav>
+
+      <section class="page-hero">
+        <h1>The Problems Of Floating-Point Math</h1>
+        <p>why ordinary decimal calculations can fail in financial software</p>
+      </section>
+
+      <section class="note-band">
+        <h2>The Binary floating-point rounding error</h2>
+        <p>
+          These are not formatting mistakes. They are the actual binary floating-point results JavaScript gets before you
+          apply any display rounding.
+        </p>
+        <div class="example-grid">
+          <article>
+            <h3>Simple calculations</h3>
+            <div class="table-scroll">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Expression</th>
+                    <th>Expected</th>
+                    <th>Actual result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="bad-row">
+                    <td><code>0.57 + 1</code></td>
+                    <td><code>1.57</code></td>
+                    <td><code>1.5699999999999998</code></td>
+                  </tr>
+                  <tr class="bad-row">
+                    <td><code>19.9 * 100</code></td>
+                    <td><code>1990</code></td>
+                    <td><code>1989.9999999999998</code></td>
+                  </tr>
+                  <tr class="bad-row">
+                    <td><code>0.8 - 0.1</code></td>
+                    <td><code>0.7</code></td>
+                    <td><code>0.7000000000000001</code></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+
+          <article>
+            <h3>Keep dividing 9 by 10</h3>
+            <p class="table-note">The first few divisions look fine, then the stored approximation starts showing through.</p>
+            <div class="table-scroll">
+              <table class="compact-table">
+                <thead>
+                  <tr>
+                    <th>Step</th>
+                    <th>Result</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td>1</td><td><code>0.9</code></td></tr>
+                  <tr><td>2</td><td><code>0.09</code></td></tr>
+                  <tr><td>3</td><td><code>0.009</code></td></tr>
+                  <tr><td>4</td><td><code>0.0009</code></td></tr>
+                  <tr class="bad-row"><td>5</td><td><code>0.00008999999999999999</code></td></tr>
+                  <tr class="bad-row"><td>6</td><td><code>0.000008999999999999999</code></td></tr>
+                  <tr class="bad-row"><td>7</td><td><code>8.999999999999999e-7</code></td></tr>
+                  <tr class="bad-row"><td>8</td><td><code>8.999999999999999e-8</code></td></tr>
+                  <tr class="bad-row"><td>9</td><td><code>8.999999999999998e-9</code></td></tr>
+                  <tr class="bad-row"><td>10</td><td><code>8.999999999999998e-10</code></td></tr>
+                  <tr class="bad-row"><td>11</td><td><code>8.999999999999997e-11</code></td></tr>
+                  <tr class="bad-row"><td>12</td><td><code>8.999999999999998e-12</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="content-grid">
+        <article class="info-panel">
+          <h2>Problem 1: Decimal Precision</h2>
+          <ul class="critique">
+            <li>Fractions such as 0.1, 0.2, 1.255, and 10.075 are simple in base 10 but often repeating in base 2.</li>
+            <li>A binary64 value stores the nearest representable binary number, not the exact decimal value you typed.</li>
+            <li>The error is usually tiny, but rounding can amplify it when a value lands just below or above a tie.</li>
+          </ul>
+        </article>
+
+        <article class="info-panel">
+          <h2>Problem 2: Magnitude Precision</h2>
+          <ul class="critique">
+            <li>Binary64 has a 53-bit significand: 52 stored fraction bits plus one implicit leading bit for normal numbers.</li>
+            <li>Integers are exact only up to 9,007,199,254,740,991, which is Number.MAX_SAFE_INTEGER in JavaScript.</li>
+            <li>Past that point, adjacent representable numbers are more than 1 apart, so some integers cannot exist.</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="note-band">
+        <h2>Some decimals never terminate in binary</h2>
+        <p>
+          A decimal fraction has a terminating binary representation if and only if, when written as a fraction in lowest
+          terms, its denominator is a power of two. That is the central reason ordinary-looking decimal values can become
+          approximate when stored as binary floating-point.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Decimal</th>
+                <th>Lowest-term fraction</th>
+                <th>Denominator</th>
+                <th>Binary result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="good-row">
+                <td>0.5</td>
+                <td>1 / 2</td>
+                <td>2 = 2^1</td>
+                <td class="good">terminates: 0.1ÃƒÂ¢Ã¢â‚¬Å¡Ã¢â‚¬Å¡</td>
+              </tr>
+              <tr class="good-row">
+                <td>0.25</td>
+                <td>1 / 4</td>
+                <td>4 = 2^2</td>
+                <td class="good">terminates: 0.01ÃƒÂ¢Ã¢â‚¬Å¡Ã¢â‚¬Å¡</td>
+              </tr>
+              <tr class="good-row">
+                <td>0.125</td>
+                <td>1 / 8</td>
+                <td>8 = 2^3</td>
+                <td class="good">terminates: 0.001ÃƒÂ¢Ã¢â‚¬Å¡Ã¢â‚¬Å¡</td>
+              </tr>
+              <tr class="bad-row">
+                <td>0.1</td>
+                <td>1 / 10</td>
+                <td>10 = 2 * 5</td>
+                <td class="bad">repeats forever: 0.0001100110011...ÃƒÂ¢Ã¢â‚¬Å¡Ã¢â‚¬Å¡</td>
+              </tr>
+              <tr class="bad-row">
+                <td>0.2</td>
+                <td>1 / 5</td>
+                <td>5</td>
+                <td class="bad">repeats forever: 0.001100110011...ÃƒÂ¢Ã¢â‚¬Å¡Ã¢â‚¬Å¡</td>
+              </tr>
+              <tr class="bad-row">
+                <td>0.01</td>
+                <td>1 / 100</td>
+                <td>100 = 2^2 * 5^2</td>
+                <td class="bad">repeats forever</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          Base 10 terminates fractions whose reduced denominator only contains factors of 2 and 5. Base 2 terminates only
+          fractions whose reduced denominator only contains factors of 2. That is why many currency-looking decimals are
+          exact on paper but approximate in binary64.
+        </p>
+      </section>
+
+      <section class="note-band">
+        <p class="kicker">Conversion mechanics</p>
+        <h2>How 0.1 becomes a repeating binary fraction</h2>
+        <p>
+          For the integer part of a decimal number, repeated division by 2 gives binary digits. For the fractional part,
+          the process is different: repeatedly multiply the fraction by 2 and record the integer part each time.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Step</th>
+                <th>Fraction * 2</th>
+                <th>Next binary digit</th>
+                <th>Remaining fraction</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1</td>
+                <td>0.1 * 2 = <strong>0</strong>.2</td>
+                <td><strong>0</strong></td>
+                <td>0.2</td>
+              </tr>
+              <tr>
+                <td>2</td>
+                <td>0.2 * 2 = <strong>0</strong>.4</td>
+                <td><strong>0</strong></td>
+                <td>0.4</td>
+              </tr>
+              <tr>
+                <td>3</td>
+                <td>0.4 * 2 = <strong>0</strong>.8</td>
+                <td><strong>0</strong></td>
+                <td>0.8</td>
+              </tr>
+              <tr>
+                <td>4</td>
+                <td>0.8 * 2 = <strong>1</strong>.6</td>
+                <td><strong>1</strong></td>
+                <td>0.6</td>
+              </tr>
+              <tr>
+                <td>5</td>
+                <td>0.6 * 2 = <strong>1</strong>.2</td>
+                <td><strong>1</strong></td>
+                <td>0.2</td>
+              </tr>
+              <tr>
+                <td>6</td>
+                <td>0.2 * 2 = <strong>0</strong>.4</td>
+                <td><strong>0</strong></td>
+                <td>0.4</td>
+              </tr>
+              <tr>
+                <td>7</td>
+                <td>0.4 * 2 = <strong>0</strong>.8</td>
+                <td><strong>0</strong></td>
+                <td>0.8</td>
+              </tr>
+              <tr>
+                <td>8</td>
+                <td>0.8 * 2 = <strong>1</strong>.6</td>
+                <td><strong>1</strong></td>
+                <td>0.6</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+            The remainder sequence repeats, so the binary digits repeat: 0.1 base 10 = 0.00011001100110011... base 2. A binary64
+          number has only 53 significant binary bits, so it stores the nearest finite approximation.
+        </p>
+      </section>
+
+      <section class="note-band">
+        <p class="kicker">How the two problems connect</p>
+        <h2>Scaling decimal places consumes magnitude</h2>
+        <p>
+          A common workaround is to multiply by 100, 10,000, or 100,000,000, do integer-like arithmetic, then divide back.
+          That only works while the scaled intermediate values still fit safely inside the 53-bit integer envelope.
+        </p>
+        <div class="explainer-card">
+          <strong>Real example:</strong>
+          suppose two 4dp amounts are both <code>45,035,996.2738</code>. Scaling each by <code>10,000</code> gives
+          <code>450,359,962,738</code>. If an implementation scales both operands again while adding or subtracting, the
+          combined intermediate is about <code>9,007,199,254,760,000</code>, which is already above JavaScript's exact
+          integer limit of <code>9,007,199,254,740,991</code>.
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Decimal places</th>
+                <th>Scale</th>
+                <th>Approximate safe total for add/subtract</th>
+                <th>If both operands are large</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>2dp</td>
+                <td>10^4 when both operands are scaled</td>
+                <td>~90,071,992,547</td>
+                <td>~45,035,996,273 each</td>
+              </tr>
+              <tr>
+                <td>4dp</td>
+                <td>10^8</td>
+                <td>~90,071,992</td>
+                <td>~45,035,996 each</td>
+              </tr>
+              <tr>
+                <td>6dp</td>
+                <td>10^12</td>
+                <td>~90,071</td>
+                <td>~45,035 each</td>
+              </tr>
+              <tr>
+                <td>8dp</td>
+                <td>10^16</td>
+                <td>~0.9</td>
+                <td>~0.45 each</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Interactive Binary64 Explorer</h2>
+        <p class="table-note">Type a number or small expression to see what JavaScript actually stores. Start with the example buttons, then compare the displayed result with the exact stored decimal.</p>
+        <div class="fp-tool">
+          <div class="explainer-card">
+            <strong>How to read this:</strong>
+            the sign says positive or negative, the exponent controls the size range, and the fraction stores the significant bits.
+            The exact stored decimal is the most useful finance warning: it shows the tiny difference hidden behind normal display rounding.
+          </div>
+
+          <div class="fp-controls">
+            <label>Number or expression
+              <input id="fpValue" type="text" value="0.1 + 0.2" />
+            </label>
+            <label>Assumed decimal places for scaled add/subtract
+              <input id="fpScale" type="number" min="0" max="12" value="4" />
+            </label>
+            <button id="fpAnalyze" type="button">Analyze</button>
+          </div>
+
+          <div class="preset-row" aria-label="example values">
+            <button type="button" data-fp-preset="1">1</button>
+            <button type="button" data-fp-preset="0.1">0.1</button>
+            <button type="button" data-fp-preset="0.2">0.2</button>
+            <button type="button" data-fp-preset="0.1 + 0.2">0.1 + 0.2</button>
+            <button type="button" data-fp-preset="1.255 * 100">1.255 * 100</button>
+            <button type="button" data-fp-preset="10.075">10.075</button>
+            <button type="button" data-fp-preset="9007199254740991">MAX_SAFE_INTEGER</button>
+            <button type="button" data-fp-preset="9007199254740992">2^53</button>
+          </div>
+
+          <div class="bit-layout" aria-label="binary64 bits">
+            <div>
+              <span class="bit-label">Sign</span>
+              <code id="fpSignBits" class="bits sign-bit"></code>
+            </div>
+            <div>
+              <span class="bit-label">Exponent</span>
+              <code id="fpExponentBits" class="bits exponent-bits"></code>
+            </div>
+            <div>
+              <span class="bit-label">Fraction</span>
+              <code id="fpFractionBits" class="bits fraction-bits"></code>
+            </div>
+          </div>
+
+          <div class="bit-formula" id="fpFormula"></div>
+
+          <div class="content-grid">
+            <article class="info-panel">
+              <h3>Decoded Value</h3>
+              <dl class="fact-list">
+                <dt>Input result</dt>
+                <dd id="fpResult"></dd>
+                <dt>Stored bits as hex</dt>
+                <dd id="fpHex"></dd>
+                <dt>Sign</dt>
+                <dd id="fpSign"></dd>
+                <dt>Stored exponent field</dt>
+                <dd id="fpExponent"></dd>
+                <dt>Power-of-two scale</dt>
+                <dd id="fpUnbiased"></dd>
+                <dt>Smallest nearby step</dt>
+                <dd id="fpUlp"></dd>
+              </dl>
+            </article>
+
+            <article class="info-panel">
+              <h3>Exact Stored Decimal</h3>
+              <p id="fpExact" class="mono-output"></p>
+              <p id="fpDisplayNote" class="table-note"></p>
+            </article>
+          </div>
+
+          <article class="info-panel">
+            <h3>Scaling Risk</h3>
+            <p id="fpScaleRisk" class="mono-output"></p>
+          </article>
+        </div>
+      </section>
+
+      <section class="note-band">
+        <h2>This is not a JavaScript problem</h2>
+        <p>
+          JavaScript is an easy place to see the issue because the default number type is a binary64 floating-point value.
+          But the underlying problem is IEEE-754 binary floating-point arithmetic, not a weakness unique to JavaScript.
+        </p>
+        <p>
+          The same family of issues appears in <strong>Python</strong>, <strong>Java</strong>, <strong>C</strong>,
+          <strong>C++</strong>, <strong>C#</strong>, <strong>Go</strong>, <strong>Ruby</strong>, <strong>PHP</strong>,
+          <strong>Swift</strong>, <strong>Kotlin</strong>, <strong>Scala</strong>, <strong>Rust</strong>, <strong>R</strong>,
+          <strong>MATLAB</strong>, <strong>Julia</strong>, <strong>Lua</strong>, <strong>Perl</strong>,
+          <strong>Objective-C</strong>, <strong>TypeScript</strong>, <strong>Visual Basic</strong>, <strong>Fortran</strong>,
+          and most <strong>SQL</strong> engines whenever they use binary floating-point types such as double, float, real, or
+          binary_double.
+        </p>
+        <p>
+          Some platforms also provide decimal types, such as <strong>Java BigDecimal</strong>, <strong>C# decimal</strong>,
+          <strong>Python Decimal</strong>, <strong>SQL DECIMAL</strong>, or <strong>IBM decNumber</strong>. Those are different
+          arithmetic models. The lesson here is about what happens when a decimal business problem is forced through binary
+          floating-point.
+        </p>
+      </section>
+
+      <section class="note-band">
+        <p class="kicker">Why finance is different</p>
+        <h2>Being off by one cent is unacceptable</h2>
+        <p>
+          In many engineering domains, a tiny floating-point error is harmless. A physics simulation, animation, chart, or
+          sensor reading often tolerates approximation. Financial software is different because the value is not just a
+          measurement; it is money, a contract, a ledger entry, a tax amount, a commission, or a customer balance.
+        </p>
+        <p>
+          If a calculation should produce 10.00 and the system books 9.99 or 10.01, the result is wrong even if the error
+          is "only" one cent. Across many users, trades, refunds, invoices, or currency conversions, small errors can
+          become reconciliation breaks, customer disputes, regulatory issues, or manual adjustment work.
+        </p>
+        <p>
+          The goal is not merely to display a nice-looking number. The goal is to apply the exact business rule, with the
+          agreed precision and rounding policy, and to make reversals and audits reproduce the same amounts.
+        </p>
+      </section>
+
+      <section>
+        <h2>Finance-Specific Rounding Lessons</h2>
+        <ul class="critique">
+          <li>Multiplying by a scale, applying Math.round, then dividing back is not bulletproof. The intermediate value can already be slightly below or above the decimal you intended.</li>
+          <li>Adding Number.EPSILON can fix some examples, but it is not a proof of correctness. It can still fail for other values and magnitudes.</li>
+          <li>Financial systems must care about rounding policy: half-up, half-down, half-even, floor, ceiling, away-from-zero, and towards-zero do not mean the same thing.</li>
+          <li>Reversals and cancellations are especially dangerous. Mirroring a positive calculation as negative may not round symmetrically unless the policy and arithmetic model support that.</li>
+          <li>For ledger, invoice, tax, commission, FX, rebate, and refund workflows, use a decimal arithmetic model or a rigorously bounded integer model with explicit rounding rules.</li>
+        </ul>
+      </section>
+
+    </main>
+
+    <script>
+      const valueInput = document.querySelector("#fpValue");
+      const scaleInput = document.querySelector("#fpScale");
+      const analyzeButton = document.querySelector("#fpAnalyze");
+      const signBits = document.querySelector("#fpSignBits");
+      const exponentBits = document.querySelector("#fpExponentBits");
+      const fractionBits = document.querySelector("#fpFractionBits");
+      const formulaOutput = document.querySelector("#fpFormula");
+      const resultOutput = document.querySelector("#fpResult");
+      const hexOutput = document.querySelector("#fpHex");
+      const signOutput = document.querySelector("#fpSign");
+      const exponentOutput = document.querySelector("#fpExponent");
+      const unbiasedOutput = document.querySelector("#fpUnbiased");
+      const ulpOutput = document.querySelector("#fpUlp");
+      const exactOutput = document.querySelector("#fpExact");
+      const displayNote = document.querySelector("#fpDisplayNote");
+      const scaleRisk = document.querySelector("#fpScaleRisk");
+
+      function evaluateExpression(expression) {
+        if (!/^[0-9eE+\-*/().\s_]+$/.test(expression)) {
+          throw new Error("Only numeric expressions are allowed.");
+        }
+
+        return Function(`"use strict"; return (${expression.replaceAll("_", "")});`)();
+      }
+
+      function bitsOf(value) {
+        const buffer = new ArrayBuffer(8);
+        const view = new DataView(buffer);
+        view.setFloat64(0, value, false);
+        const raw = view.getBigUint64(0, false);
+        const binary = raw.toString(2).padStart(64, "0");
+        return {
+          raw,
+          binary,
+          sign: binary.slice(0, 1),
+          exponent: binary.slice(1, 12),
+          fraction: binary.slice(12),
+          hex: `0x${raw.toString(16).padStart(16, "0")}`,
+        };
+      }
+
+      function exactDecimal(value) {
+        if (!Number.isFinite(value)) {
+          return String(value);
+        }
+        if (Object.is(value, -0)) {
+          return "-0";
+        }
+        if (value === 0) {
+          return "0";
+        }
+
+        const { raw } = bitsOf(value);
+        const sign = raw >> 63n;
+        const exponent = Number((raw >> 52n) & 0x7ffn);
+        const fraction = raw & ((1n << 52n) - 1n);
+        const significand = exponent === 0 ? fraction : (1n << 52n) + fraction;
+        const unbiased = exponent === 0 ? -1022 : exponent - 1023;
+        const power = unbiased - 52;
+        const negative = sign === 1n;
+
+        if (power >= 0) {
+          const integer = significand << BigInt(power);
+          return `${negative ? "-" : ""}${integer.toString()}`;
+        }
+
+        const denominator = 1n << BigInt(-power);
+        const integerPart = significand / denominator;
+        let remainder = significand % denominator;
+        let decimals = "";
+        let truncated = false;
+
+        for (let i = 0; i < 90 && remainder !== 0n; i += 1) {
+          remainder *= 10n;
+          decimals += String(remainder / denominator);
+          remainder %= denominator;
+        }
+
+        if (remainder !== 0n) {
+          truncated = true;
+        }
+
+        return `${negative ? "-" : ""}${integerPart.toString()}${decimals ? `.${decimals}` : ""}${truncated ? "..." : ""}`;
+      }
+
+      function formatPowerOfTwo(power) {
+        if (power >= 0) {
+          return exactDecimal(2 ** power);
+        }
+
+        return exactDecimal(2 ** power);
+      }
+
+      function formatFractionExplanation(rawExponent, fractionBitsText) {
+        if (rawExponent === 0) {
+          return "0.fraction bits";
+        }
+
+        if (/^0+$/.test(fractionBitsText)) {
+          return "1.0";
+        }
+
+        return "1.fraction bits";
+      }
+
+      function analyze() {
+        try {
+          const value = Number(evaluateExpression(valueInput.value));
+          const scaleDp = Math.max(0, Math.min(12, Number(scaleInput.value || 0)));
+          const bits = bitsOf(value);
+          const rawExponent = parseInt(bits.exponent, 2);
+          const unbiased = rawExponent === 0 ? -1022 : rawExponent - 1023;
+          const ulpPower = rawExponent === 0 ? -1074 : unbiased - 52;
+          const scale = 10 ** scaleDp;
+          const scaled = Math.abs(value) * scale * scale;
+
+          signBits.textContent = bits.sign;
+          exponentBits.textContent = bits.exponent;
+          fractionBits.textContent = bits.fraction.replace(/(.{4})/g, "$1 ").trim();
+          formulaOutput.textContent =
+            rawExponent === 2047
+              ? "This is a special IEEE-754 value, so the normal sign * fraction * 2^exponent formula does not apply."
+              : `Formula: ${bits.sign === "1" ? "-" : "+"}${formatFractionExplanation(rawExponent, bits.fraction)} * 2^${unbiased}. ` +
+                `The exponent bits store ${rawExponent}; subtract the bias 1023 to get ${unbiased}.`;
+          resultOutput.textContent = `${value}`;
+          hexOutput.textContent = bits.hex;
+          signOutput.textContent = bits.sign === "1" ? "negative" : "positive";
+          exponentOutput.textContent = `${rawExponent} stored in the exponent bits`;
+          unbiasedOutput.textContent = rawExponent === 2047 ? "special value" : `about 2^${unbiased} before applying the fraction bits`;
+          ulpOutput.textContent =
+            rawExponent === 2047
+              ? "not applicable"
+              : `the next representable value is about 2^${ulpPower} away, roughly ${formatPowerOfTwo(ulpPower)}`;
+          exactOutput.textContent = exactDecimal(value);
+          displayNote.textContent =
+            `${value}` === exactDecimal(value)
+              ? "The default display is the exact stored value for this input."
+              : "JavaScript displays the shortest value that maps back to these bits. The exact stored decimal can still be slightly different.";
+          scaleRisk.textContent =
+            `If two ${scaleDp}dp values are scaled before add/subtract, the combined scale is 10^${scaleDp * 2}. ` +
+            `For this input size, the intermediate value is about ${scaled.toLocaleString()}. ` +
+            `JavaScript can represent every integer exactly only up to ${Number.MAX_SAFE_INTEGER.toLocaleString()}. ` +
+            (scaled > Number.MAX_SAFE_INTEGER ? "That is outside exact integer safety." : "That is inside exact integer safety for this single magnitude probe.");
+        } catch (error) {
+          resultOutput.textContent = error instanceof Error ? error.message : String(error);
+        }
+      }
+
+      document.querySelectorAll("[data-fp-preset]").forEach((button) => {
+        button.addEventListener("click", () => {
+          valueInput.value = button.getAttribute("data-fp-preset");
+          analyze();
+        });
+      });
+
+      analyzeButton.addEventListener("click", analyze);
+      valueInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          analyze();
+        }
+      });
+      scaleInput.addEventListener("input", analyze);
+      analyze();
+    </script>
+  </body>
+</html>
+

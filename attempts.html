@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Attempts To Solve Decimal Math</title>
+    <link rel="stylesheet" href="/src/app/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <nav class="top-nav" aria-label="Primary">
+        <a href="/fp-errors.html">FP Math Errors</a>
+        <a href="/attempts.html" aria-current="page">Naive Solutions</a>
+        <a href="/comparisons.html">Lab</a>        <a href="/third-party-libraries.html">Third-Party Libraries</a>
+      </nav>
+
+      <section class="page-hero">
+        <h1>Ineffective Attempts To Solve Decimal Math</h1>
+        <p>There are several ways to reduce decimal bugs. Some only hide them; others change the arithmetic model.</p>
+      </section>
+
+      <section>
+        <h2>Common Approaches</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Approach</th>
+                <th>What it does</th>
+                <th>Problem</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>toFixed / display formatting</td>
+                <td>Rounds or pads the final string shown to a user.</td>
+                <td>Does not protect intermediate arithmetic, persisted values, or reconciliation.</td>
+              </tr>
+              <tr>
+                <td>Math.round(value * scale) / scale</td>
+                <td>Rounds to a fixed number of decimal places using Number arithmetic.</td>
+                <td>Still relies on binary64 and can fail near ties or unsafe scaled integers.</td>
+              </tr>
+              <tr>
+                <td>Scaled integer cents/pips</td>
+                <td>Stores amounts as integers at a chosen scale.</td>
+                <td>Can work well, but only if every workflow has a fixed scale and never exceeds safe integer or BigInt rules.</td>
+              </tr>
+              <tr>
+                <td>decimal-place scaling</td>
+                <td>Attempts to repair common decimal cases while still storing Number.</td>
+                <td>Improves some examples but creates operation-specific unsafe envelopes.</td>
+              </tr>
+              <tr>
+                <td>Arbitrary-precision decimal</td>
+                <td>Uses a decimal arithmetic model with explicit precision and rounding.</td>
+                <td>Slower and requires conscious configuration, but matches financial requirements much better.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>A Typical Naive Approach</h2>
+        <div class="dialogue">
+          <p><strong>*</strong> JavaScript gives 0.1 + 0.2 as 0.30000000000000004.</p>
+          <p><strong>*</strong> Just multiply by 100, use Math.round, then divide by 100.</p>
+          <p><strong>*</strong> That fixes some demos, but it is not a general decimal arithmetic strategy.</p>
+        </div>
+        <p>
+          Scaling by 100 can be acceptable for a very narrow currency-display step. It is weak advice when it is presented
+          as a general fix for financial arithmetic, because it assumes every value only needs 2dp, every intermediate is
+          safe after scaling, and every rounding boundary is represented accurately enough.
+        </p>
+      </section>
+
+      <section>
+        <h2>Why Scale By 100 Is Weak</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Claim</th>
+                <th>Counterexample</th>
+                <th>What it shows</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Decimal fractions become safe after simple scaling.</td>
+                <td>9 / 10 / 10 / 10 / 10 becomes 0.0009, then the next division gives 0.00008999999999999999.</td>
+                <td>Repeated division by 10 still uses binary floating-point. The decimal representation keeps drifting.</td>
+              </tr>
+              <tr>
+                <td>Math.round(value * 100) / 100 fixes 2dp money.</td>
+                <td>2.51 * 0.5 = 1.255. Rounding to 2dp with the scale-by-100 pattern can produce 1.25 instead of 1.26.</td>
+                <td>The intermediate value is not the exact decimal 1.255; it can sit just below the tie.</td>
+              </tr>
+              <tr>
+                <td>If one value works, the approach is reliable.</td>
+                <td>4.51 * 0.5 = 2.255 can round differently from the 1.255 case.</td>
+                <td>Floating-point errors are value-dependent. Similar-looking inputs can land on different sides of a rounding boundary.</td>
+              </tr>
+              <tr>
+                <td>Small additions are harmless.</td>
+                <td>0.11 + 0.7 gives a value like 0.8099999999999999.</td>
+                <td>Even ordinary decimal addition can leave a hidden tail before display formatting.</td>
+              </tr>
+              <tr>
+                <td>Scaling itself is safe.</td>
+                <td>19.9 * 100 gives 1989.9999999999998.</td>
+                <td>The scaling step can introduce or expose the binary approximation problem.</td>
+              </tr>
+              <tr>
+                <td>Subtracting decimal values is fine after formatting.</td>
+                <td>0.8 - 0.1 gives a value like 0.7000000000000001.</td>
+                <td>Subtraction can expose tails, and later calculations may consume the raw value before it is formatted.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>The Math.round Version Fails Too</h2>
+        <p>
+          Another common recommendation is to choose a factor, multiply, call Math.round, then divide back. This is the
+          same weak idea in a more official-looking wrapper. It can still fail exactly where finance code cares most:
+          values near rounding boundaries.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Expression</th>
+                <th>JavaScript result</th>
+                <th>Expected decimal result</th>
+                <th>Problem</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Math.round(1.005 * 100) / 100</td>
+                <td class="bad">1</td>
+                <td class="good">1.01</td>
+                <td>1.005 is stored slightly below the exact decimal tie, so the scaled value rounds down.</td>
+              </tr>
+              <tr>
+                <td>Math.round(1.0055 * 100) / 100</td>
+                <td>1.01</td>
+                <td class="good">1.01</td>
+                <td>This nearby value works, which makes the workaround look more reliable than it is.</td>
+              </tr>
+              <tr>
+                <td>Math.round((2.51 * 0.5) * 100) / 100</td>
+                <td class="bad">1.25</td>
+                <td class="good">1.26</td>
+                <td>The expression produces a boundary value, 1.255, but the binary intermediate is not the exact decimal.</td>
+              </tr>
+              <tr>
+                <td>Math.round(19.9 * 100)</td>
+                <td class="bad">1990 after rounding, but the raw scaled value is 1989.9999999999998</td>
+                <td class="good">1990</td>
+                <td>The scaling step itself is already approximate; rounding happens to hide it in this case.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The real lesson is not "never use Math.round". The lesson is that Math.round operates on the binary64 value it
+          receives, not on the decimal value the business rule describes.
+        </p>
+      </section>
+
+      <section>
+        <h2>The Exponential Notation Trick</h2>
+        <p>
+          Several attributed workarounds recommend shifting the decimal point using exponential notation, rounding, then
+          shifting back. In code, this is usually shaped like
+          <code>Number(Math.round(Number(value + "e2")) + "e-2")</code>. This can fix some famous examples, including
+          1.005, so it looks like a stronger solution than simple scale/divide.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Case</th>
+                <th>Exponential trick result</th>
+                <th>What to learn</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>1.005 rounded to 2dp</td>
+                <td class="good">1.01</td>
+                <td>It improves this headline case, which is why the advice is attractive.</td>
+              </tr>
+              <tr>
+                <td>2.51 * 0.5, then rounded to 2dp</td>
+                <td class="good">1.26</td>
+                <td>It can repair some boundary values after the arithmetic has already happened.</td>
+              </tr>
+              <tr>
+                <td>-1.255 rounded to 2dp</td>
+                <td class="bad">-1.25</td>
+                <td>It still uses Math.round semantics, which round ties toward +Infinity, not financial half-up away from zero.</td>
+              </tr>
+              <tr>
+                <td>-10.075 rounded to 2dp</td>
+                <td class="bad">-10.07</td>
+                <td>Negative reversals, refunds, and cancellations can round differently from the positive transaction.</td>
+              </tr>
+              <tr>
+                <td>Large values near the safe integer boundary</td>
+                <td class="bad">already approximate before the helper runs</td>
+                <td>The helper cannot recover decimal information that was lost when the value became a binary64 Number.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p>
+          This is a better final-rounding helper than the plain scale/divide example, but it is still not a financial
+          arithmetic model. It does not define business rounding modes, preserve exact intermediate values, handle
+          allocation, or protect large scaled magnitudes. Claims that exponential notation prevents the rounding error
+          should be read narrowly: it can avoid some particular scale/multiply artifacts, but it does not make binary64
+          represent decimal values exactly.
+        </p>
+      </section>
+
+      <section>
+        <h2>What The Advice Misses</h2>
+        <ul class="critique">
+          <li><strong>It confuses display rounding with arithmetic correctness.</strong> A formatted string can look right while the intermediate number is still wrong.</li>
+          <li><strong>It assumes 2dp is always the business scale.</strong> Trading platforms often involve prices, quantities, FX rates, crypto, commission rates, and tax rates with 4, 6, 8, or more decimal places.</li>
+          <li><strong>It ignores safe-integer limits.</strong> Scaling consumes magnitude. Large values multiplied by 100, 10,000, or 100,000,000 can exceed the exact integer envelope.</li>
+          <li><strong>It does not define a rounding policy.</strong> Half-up, half-even, ceiling, floor, away-from-zero, and towards-zero are different business rules.</li>
+          <li><strong>It is brittle near ties.</strong> Values such as 1.255 and 2.255 are exactly where invoice, tax, commission, and refund calculations become visible to users.</li>
+          <li><strong>It breaks down in workflows.</strong> Refunds, reversals, rebates, partial allocations, and FX conversion chain several operations before final display.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>A Better Version Of The Advice</h2>
+        <ul class="critique">
+          <li>For display-only output, final formatting may be acceptable if the raw value is not persisted or reused.</li>
+          <li>For fixed-scale integer arithmetic, define the scale, prove the maximum magnitude, and stay inside the safe integer range or use BigInt.</li>
+          <li>For financial business logic, use decimal arithmetic or money-domain libraries with explicit precision and rounding policies.</li>
+          <li>Do not accept a workaround because it fixes 0.1 + 0.2. Test it against rounding boundaries, large magnitudes, chained operations, reversals, and allocations.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Practical Takeaway</h2>
+        <ul class="critique">
+          <li>For ledger, tax, rebate, commission, FX conversion, and reversal workflows, use a decimal model with explicit rounding policy.</li>
+          <li>For display-only real-time estimates, Number-backed calculations may be acceptable if the input envelope and tolerance are documented.</li>
+          <li>The right replacement is not just the fastest library; it is the library whose precision model maps cleanly to the business rules.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>References</h2>
+        <p class="warning-callout">
+          <strong>WARNING:</strong> do not use these suggestions as financial arithmetic guidance. They are listed here
+          because they are common internet advice, not because they are safe.
+        </p>
+        <ul class="critique">
+          <li><a href="https://stackoverflow.com/questions/55280847/floating-point-number-in-javascript-ieee-754">Stack Overflow discussion with scale-by-100 advice</a></li>
+          <li><a href="https://dev.to/mayankav/javascript-s-broken-mathematics-304m">DEV article suggesting Math.round with a factor and toFixed</a></li>
+          <li><a href="https://jessijokes.medium.com/the-simple-and-not-boring-guide-to-rounding-accurately-in-javascript-98748810fccf">Medium article suggesting exponential notation for rounding</a></li>
+          <li><a href="https://medium.com/@borisdedejski/rounding-numbers-on-x-decimal-places-in-javascript-5a4bc26e4149">Medium article also suggesting exponential notation for decimal-place rounding</a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
+
+

@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Third-Party Decimal Libraries</title>
+    <link rel="stylesheet" href="/src/app/styles.css" />
+  </head>
+  <body>
+    <main id="app">
+      <nav class="top-nav" aria-label="Primary">
+        <a href="/fp-errors.html">FP Math Errors</a>
+        <a href="/attempts.html">Naive Solutions</a>
+        <a href="/comparisons.html">Lab</a>        <a href="/third-party-libraries.html" aria-current="page">Third-Party Libraries</a>
+      </nav>
+
+      <section class="page-hero">
+        <h1>Third-Party Decimal Libraries</h1>
+        <p>Summary of the decimal libraries used in the lab and how their precision models differ.</p>
+      </section>
+
+      <section>
+        <h2>Third-Party Decimal Library Summary</h2>
+        <ul class="critique">
+          <li><strong>decimal.js:</strong> the broadest option here. It uses significant-digit precision, rounds arithmetic to that precision, and supports more advanced operations such as powers, logarithms, and trigonometry. It is a strong default when correctness and feature coverage matter more than bundle size.</li>
+          <li><strong>bignumber.js:</strong> a good fit for financial-style decimal arithmetic. Its configuration is based mainly on decimal places for division-like operations, while add, subtract, and multiply are generally exact until output or operation limits matter. It has fewer advanced math functions than decimal.js but maps well to money/quantity calculations.</li>
+          <li><strong>big.js:</strong> the smallest and simplest of the MikeMcl libraries in this comparison. It focuses on core decimal arithmetic with a compact API. Its division precision is controlled by decimal places. It is useful when bundle size and simple arithmetic matter, but it has fewer rounding modes and features.</li>
+          <li><strong>decimal.js-light:</strong> a smaller variant of decimal.js. It keeps significant-digit precision but trims features. Its arithmetic behavior differs from full decimal.js because operations are truncated at precision rather than rounded in the same way as full decimal.js, so it can diverge in edge cases despite similar configuration.</li>
+          <li><strong>decNumber WASM:</strong> IBM decNumber compiled to WebAssembly. The current lab build is capped at 128 significant digits and defaults to 80 significant digits, but the underlying decNumber library is an arbitrary-precision decimal arithmetic system whose context can scale far beyond this lab build.</li>
+          <li><strong>currency.js:</strong> a small fixed-scale currency helper that stores values as integer minor units internally. It is useful for typical currency amounts but is not an arbitrary-precision decimal library.</li>
+          <li><strong>Dinero.js:</strong> a money-object library for amount/currency/scale workflows. Dinero.js v1 had divide and percentage helpers; Dinero.js v2 removes both. Division on integers loses information unless a rounding or allocation policy is explicit, so v2 pushes those workflows toward allocation/rates rather than casual division.</li>
+          <li><strong>accounting-js:</strong> a number and money formatting/parsing helper. It is useful for display and custom toFixed behavior, but should not be treated as an arithmetic engine.</li>
+          <li><strong>moneysafe:</strong> a BigNumber-backed money helper from Eric Elliott. It provides money factories and add/multiply/divide helpers; the lab uses a custom 12dp currency factory for comparison.</li>
+          <li><strong>math.js:</strong> a broad mathematics toolkit with BigNumber support. It is not bundled into this lab because it is much larger and much broader than the money/decimal problem being tested here.</li>
+          <li><strong>Practical takeaway:</strong> for a finance app, bignumber.js and big.js are often easier to reason about because their division precision is decimal-place oriented. decimal.js and decNumber are significant-digit oriented, which is powerful but can be less intuitive when the requirement is fixed decimal places such as 2, 4, or 12 DP.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Choosing Between The MikeMcl Libraries</h2>
+        <p class="table-note">
+          The four MikeMcl libraries overlap, but they optimize for different requirements. Pick based on the precision
+          model first, then feature set and bundle/API size.
+        </p>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Requirement</th>
+                <th>decimal.js</th>
+                <th>bignumber.js</th>
+                <th>big.js</th>
+                <th>decimal.js-light</th>
+                <th>Practical choice</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Money or quantity calculations with fixed decimal places</td>
+                <td>Works, but significant-digit precision can be less intuitive for fixed 2dp, 4dp, or 12dp rules.</td>
+                <td>Strong fit. Division precision is decimal-place oriented and add/subtract/multiply are easy to reason about.</td>
+                <td>Good fit for simple workflows with a smaller API and decimal-place division precision.</td>
+                <td>Works, but inherits the significant-digit mental model from decimal.js.</td>
+                <td><strong>bignumber.js</strong> for most finance arithmetic; <strong>big.js</strong> if the operation set is small.</td>
+              </tr>
+              <tr>
+                <td>General mathematical functions</td>
+                <td>Broadest support: powers, roots, logarithms, trigonometry, and more.</td>
+                <td>Good core arithmetic, but fewer advanced functions than decimal.js.</td>
+                <td>Small core API; includes common basics such as sqrt but not broad scientific functions.</td>
+                <td>Trimmed version of decimal.js with fewer functions.</td>
+                <td><strong>decimal.js</strong>.</td>
+              </tr>
+              <tr>
+                <td>Precision model</td>
+                <td>Precision is configured as significant digits, and operations round to that precision.</td>
+                <td>Division and formatting are mainly controlled with decimal places; core finite operations preserve exact decimal results until limits/output matter.</td>
+                <td>Division precision is configured with decimal places; API is intentionally narrow.</td>
+                <td>Significant-digit precision like decimal.js, with a lighter implementation.</td>
+                <td>Use <strong>bignumber.js</strong> or <strong>big.js</strong> when product rules say "N decimal places".</td>
+              </tr>
+              <tr>
+                <td>Rounding policy support</td>
+                <td>Many rounding modes and global/clone configuration.</td>
+                <td>Many rounding modes and explicit rounding for decimal places/significant digits.</td>
+                <td>Fewer modes, but enough for common up, down, half-up, and half-even style needs.</td>
+                <td>Several modes, but fewer overall features than decimal.js.</td>
+                <td><strong>bignumber.js</strong> or <strong>decimal.js</strong> when rounding policy variety matters.</td>
+              </tr>
+              <tr>
+                <td>Multiple independent configurations</td>
+                <td>Supports cloned constructors with separate precision/rounding settings.</td>
+                <td>Supports cloned constructors with separate configuration.</td>
+                <td>Supports constructor-level configuration, but with fewer settings.</td>
+                <td>Supports cloned constructors, but with the smaller decimal.js-light feature set.</td>
+                <td><strong>decimal.js</strong> or <strong>bignumber.js</strong> for libraries/apps with multiple calculation policies.</td>
+              </tr>
+              <tr>
+                <td>Small bundle and small API surface</td>
+                <td>Largest of these four, because it has the broadest feature set.</td>
+                <td>Medium. More features than big.js, less broad than decimal.js.</td>
+                <td>Smallest and simplest option.</td>
+                <td>Smaller than decimal.js while keeping a decimal.js-style API.</td>
+                <td><strong>big.js</strong> for small apps; <strong>decimal.js-light</strong> if you prefer decimal.js semantics.</td>
+              </tr>
+              <tr>
+                <td>Input formats beyond ordinary base-10 strings</td>
+                <td>Broad input handling, including non-decimal bases.</td>
+                <td>Strong support for decimal and non-decimal arithmetic/input use cases.</td>
+                <td>Deliberately stricter and smaller; ordinary decimal numbers only.</td>
+                <td>More limited than decimal.js.</td>
+                <td><strong>bignumber.js</strong> or <strong>decimal.js</strong> for non-decimal/base conversion requirements.</td>
+              </tr>
+              <tr>
+                <td>Main caveat</td>
+                <td>Significant digits are powerful but can surprise developers expecting fixed decimal places.</td>
+                <td>Still not a money domain model: no currency, allocation, tax policy, or ledger semantics by itself.</td>
+                <td>Smaller API means fewer escape hatches if requirements grow.</td>
+                <td>Can diverge from full decimal.js behavior in edge cases because it is a lighter implementation.</td>
+                <td>Choose the arithmetic engine separately from the business-money model.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="note-band">
+        <h2>Short Recommendation For Decimal Arithmetic</h2>
+        <p>
+          <strong>big.js is fine</strong> if financial front end calculations only needs core decimal arithmetic and these rounding modes:
+        </p>
+        <ul class="critique">
+          <li><strong>roundDown</strong></li>
+          <li><strong>roundHalfUp</strong></li>
+          <li><strong>roundHalfEven</strong></li>
+          <li><strong>roundUp</strong></li>
+        </ul>
+        <p>
+          In that narrower requirement set, <strong>big.js is a good decimal arithmetic replacement candidate</strong>: it is small,
+          focused, decimal-place oriented for division, and performs faster than bignumber.js in this lab. Use a thin
+          trading-domain wrapper so business code calls named policies such as price rounding, quantity rounding, money
+          rounding, tax rounding, and reversal rounding rather than raw library methods.
+        </p>
+        <p>
+          Choose <strong>bignumber.js</strong> instead when the app needs more rounding modes, broader input/configuration
+          features, non-decimal/base handling, or more escape hatches for future requirements.
+        </p>
+      </section>
+
+      <section>
+        <h2>decNumber: The Industrial-Strength Decimal Reference</h2>
+        <ul class="critique">
+          <li><strong>Industrial pedigree:</strong> decNumber is not just another JavaScript-style decimal package. It is Mike Cowlishaw's IBM-origin ANSI C implementation of General Decimal Arithmetic, with source distributed through ICU and the GCC repository.</li>
+          <li><strong>Hardware-adjacent standardization:</strong> IBM POWER6 and System z processors later implemented decimal floating-point support in hardware/software facilities, and IBM documentation uses decNumber as a Decimal Floating Point implementation in z/TPF.</li>
+          <li><strong>decNumber:</strong> arbitrary-precision decimal number representation designed for efficient software computation. Once a value is held as a decNumber, arithmetic can continue without repeated string/number conversions.</li>
+          <li><strong>decContext:</strong> most decNumber operations take a decContext argument. The context controls precision, rounding mode, exponent limits, status flags, and trap handling for exceptional conditions.</li>
+          <li><strong>Precision range:</strong> decContext.digits is an int32 field and supports precision from 1 up to 999,999,999 decimal digits, bounded in practice by build choices, memory, and performance.</li>
+          <li><strong>IEEE decimal floating formats:</strong> the package also supports fixed-size decimal floating-point formats: decimal32, decimal64, and decimal128.</li>
+          <li><strong>Fixed-format precision:</strong> decimal32 has 7 decimal digits of precision, decimal64 has 16, and decimal128 has 34.</li>
+          <li><strong>decFloat modules:</strong> decSingle, decDouble, and decQuad support those fixed formats and are designed to be more compact and efficient than general decNumber for fixed-format work.</li>
+          <li><strong>BCD support:</strong> decNumber also includes packed/BCD-oriented utilities, which matters for systems that need decimal storage and conversion formats rather than binary approximations.</li>
+          <li><strong>Formats:</strong> values can move through strings, decNumber's arbitrary-precision representation, and the fixed decimal32/decimal64/decimal128 formats.</li>
+          <li><strong>Practical distinction:</strong> decNumber is the flexible arbitrary-precision engine; decimal32/64/128 and decSingle/Double/Quad are fixed-size decimal floating formats that trade flexibility for efficiency.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>Feature Comparison</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Library</th>
+                <th>Primary purpose</th>
+                <th>Arithmetic model</th>
+                <th>Currency semantics</th>
+                <th>Rounding modes</th>
+                <th>Allocation</th>
+                <th>Best fit</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>decimal.js</td>
+                <td>General decimal math</td>
+                <td>Arbitrary-precision decimal, significant digits</td>
+                <td>No</td>
+                <td>Broad set</td>
+                <td>No</td>
+                <td>Correct decimal arithmetic with advanced functions.</td>
+              </tr>
+              <tr>
+                <td>bignumber.js</td>
+                <td>General decimal math</td>
+                <td>Arbitrary-precision decimal, decimal-place oriented division</td>
+                <td>No</td>
+                <td>Broad set</td>
+                <td>No</td>
+                <td>Finance-style decimal arithmetic.</td>
+              </tr>
+              <tr>
+                <td>big.js</td>
+                <td>Small decimal math</td>
+                <td>Arbitrary-precision decimal, decimal-place oriented division</td>
+                <td>No</td>
+                <td>Limited set</td>
+                <td>No</td>
+                <td>Small bundle, core add/subtract/multiply/divide.</td>
+              </tr>
+              <tr>
+                <td>decimal.js-light</td>
+                <td>Smaller decimal.js variant</td>
+                <td>Arbitrary-precision decimal, significant digits</td>
+                <td>No</td>
+                <td>Broad set</td>
+                <td>No</td>
+                <td>Decimal arithmetic with fewer features than decimal.js.</td>
+              </tr>
+              <tr>
+                <td>decNumber</td>
+                <td>Decimal arithmetic C library</td>
+                <td>Arbitrary-precision decimal via decContext</td>
+                <td>No</td>
+                <td>IEEE decimal-style modes</td>
+                <td>No</td>
+                <td>Reference-grade arbitrary-precision decimal arithmetic and WASM comparison.</td>
+              </tr>
+              <tr>
+                <td>currency.js</td>
+                <td>Currency helper</td>
+                <td>Fixed-scale integer minor units</td>
+                <td>Partial</td>
+                <td>Implicit fixed precision</td>
+                <td>Yes, distribute</td>
+                <td>Typical money values at known currency precision.</td>
+              </tr>
+              <tr>
+                <td>Dinero.js</td>
+                <td>Money object</td>
+                <td>Scaled integer amount with currency and scale metadata</td>
+                <td>Yes</td>
+                <td>Several modes for scale transforms</td>
+                <td>Yes, allocate</td>
+                <td>Money workflows where currency, scale, allocation, and formatting matter. v2 removes v1 divide/percentage helpers because integer division needs explicit policy.</td>
+              </tr>
+              <tr>
+                <td>accounting-js</td>
+                <td>Formatting/parsing</td>
+                <td>JavaScript Number plus formatting helpers</td>
+                <td>Display only</td>
+                <td>Custom toFixed-style formatting</td>
+                <td>No</td>
+                <td>Presentation, parsing, and display formatting.</td>
+              </tr>
+              <tr>
+                <td>moneysafe</td>
+                <td>Money helper</td>
+                <td>BigNumber-backed money values</td>
+                <td>Yes, via currency factories</td>
+                <td>toFixed-style output rounding</td>
+                <td>Ledger helpers</td>
+                <td>Money calculations with configurable decimal precision.</td>
+              </tr>
+              <tr>
+                <td>math.js</td>
+                <td>General mathematics toolkit</td>
+                <td>Configurable Number, BigNumber, Fraction, Matrix, Unit, and more</td>
+                <td>No</td>
+                <td>Available through BigNumber configuration/functions</td>
+                <td>No</td>
+                <td>Broad scientific/math tooling; probably too large and general for this lab.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>Precision Model Comparison</h2>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Library</th>
+                <th>Primary precision model</th>
+                <th>Strength</th>
+                <th>Caution</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>decimal.js</td>
+                <td>Significant digits</td>
+                <td>Broad feature set and explicit rounding modes.</td>
+                <td>Significant-digit precision is not the same as fixed decimal places.</td>
+              </tr>
+              <tr>
+                <td>bignumber.js</td>
+                <td>Decimal places for division-like operations</td>
+                <td>Good fit for money and quantity arithmetic.</td>
+                <td>Still needs an explicit rounding policy for final values.</td>
+              </tr>
+              <tr>
+                <td>big.js</td>
+                <td>Decimal places for division</td>
+                <td>Small, simple, and focused.</td>
+                <td>Fewer operations and rounding modes than larger libraries.</td>
+              </tr>
+              <tr>
+                <td>decimal.js-light</td>
+                <td>Significant digits</td>
+                <td>Smaller decimal.js-style option.</td>
+                <td>Can differ from full decimal.js in edge cases.</td>
+              </tr>
+              <tr>
+                <td>decNumber</td>
+                <td>Significant digits in decContext</td>
+                <td>Mature arbitrary-precision decimal arithmetic model with configurable precision and rounding context.</td>
+                <td>The WASM bridge has its own build-time precision cap; fixed decimal32/64/128 formats are separate, more efficient modules.</td>
+              </tr>
+              <tr>
+                <td>currency.js</td>
+                <td>Fixed decimal places</td>
+                <td>Simple, ergonomic currency operations.</td>
+                <td>Not appropriate for arbitrary decimal precision or very large scaled values.</td>
+              </tr>
+              <tr>
+                <td>Dinero.js</td>
+                <td>Integer amount plus scale and currency</td>
+                <td>Models money explicitly and supports allocation workflows.</td>
+                <td>Not a drop-in general decimal calculator; v2 has no divide or percentage helpers.</td>
+              </tr>
+              <tr>
+                <td>accounting-js</td>
+                <td>Formatting/parsing over Number</td>
+                <td>Useful display helpers and custom toFixed behavior.</td>
+                <td>Does not solve arithmetic correctness by itself.</td>
+              </tr>
+              <tr>
+                <td>moneysafe</td>
+                <td>BigNumber-backed currency factory</td>
+                <td>Uses arbitrary-precision BigNumber internally and exposes money-style operations.</td>
+                <td>Output precision follows the configured currency decimal places.</td>
+              </tr>
+              <tr>
+                <td>math.js</td>
+                <td>Configurable numeric types</td>
+                <td>Can use BigNumber and has a very broad API.</td>
+                <td>Large dependency for a focused financial decimal arithmetic problem.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section>
+        <h2>References</h2>
+        <ul class="critique">
+          <li><a href="https://stackoverflow.com/questions/55280847/floating-point-number-in-javascript-ieee-754">Stack Overflow discussion on JavaScript IEEE-754 representation</a></li>
+          <li><a href="https://www.robinwieruch.de/javascript-rounding-errors/">Robin Wieruch on JavaScript rounding errors in financial applications</a></li>
+          <li><a href="https://www.exploringbinary.com/binary-converter/">Exploring Binary converter</a></li>
+          <li><a href="https://mikemcl.github.io/decimal.js/">decimal.js API documentation</a></li>
+          <li><a href="https://mikemcl.github.io/bignumber.js/">bignumber.js API documentation</a></li>
+          <li><a href="https://mikemcl.github.io/big.js/">big.js API documentation</a></li>
+          <li><a href="https://mikemcl.github.io/decimal.js-light/">decimal.js-light API documentation</a></li>
+          <li><a href="http://speleotrove.com/decimal/">General Decimal Arithmetic and decNumber resources</a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
+
+

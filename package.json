@@ -1,0 +1,37 @@
+{
+  "name": "floatingpointmath",
+  "author": "Graham Phillips",
+  "version": "1.0.0",
+  "description": "Floating point comparison lab for JavaScript Number, MikeMcl decimal libraries, money libraries, and decNumber WASM.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build:decnumber": "powershell -ExecutionPolicy Bypass -File scripts/build-decnumber-wasm.ps1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:ui": "vitest --ui"
+  },
+  "dependencies": {
+    "accounting-js": "^2.0.3",
+    "big.js": "^7.0.1",
+    "bignumber.js": "^11.1.2",
+    "currency.js": "^2.0.4",
+    "decimal.js": "^10.6.0",
+    "decimal.js-light": "^2.5.1",
+    "dinero.js": "^2.0.2",
+    "fast-check": "^4.8.0",
+    "moneysafe": "^2.2.4"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "jsdom": "^29.1.1",
+    "typescript": "^5.5.3",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.8"
+  },
+  "private": true
+}
+
+
