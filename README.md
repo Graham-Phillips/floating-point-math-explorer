@@ -4,6 +4,8 @@ A browser-based TypeScript/Vite lab for comparing JavaScript floating-point beha
 
 The project demonstrates where JavaScript `Number` works, where it exposes binary floating-point artefacts, and how common decimal libraries behave across accuracy, rounding, limits, performance, and financial workflow scenarios.
 
+It measures performance and accuracy for the included libraries. It includes an education section to help undertsand the issues. The lab allows users to test the included libraries and adjust the parameters in order to discover weaknesses.
+
 ## What It Compares
 
 The lab currently includes adapters for:
